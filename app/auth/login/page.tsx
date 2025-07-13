@@ -1,16 +1,17 @@
 "use client"
 
-import { GlassButton } from "@/components/ui/glass-button"
-import { GlassCard } from "@/components/ui/glass-card"
-import { GlassInput } from "@/components/ui/glass-input"
+import { EnhancedGlassButton } from "@/components/ui/enhanced-glass-button"
+import { EnhancedGlassCard } from "@/components/ui/enhanced-glass-card"
+import { EnhancedGlassInput } from "@/components/ui/enhanced-glass-input"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { useAppStore } from "@/lib/store"
 import { signIn, signUp, signInWithGoogle } from "@/lib/auth"
-import { supabase } from "@/lib/supabase"
-import { motion } from "framer-motion"
-import { Brain, Chrome, Users, GraduationCap } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Brain, Chrome, Users, GraduationCap, Mail, Lock, User, ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
+import Link from "next/link"
 
 export default function AuthPage() {
   const [isSignup, setIsSignup] = useState(false)
@@ -22,21 +23,48 @@ export default function AuthPage() {
     name: '',
     confirmPassword: ''
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
   
   const { setUser } = useAppStore()
   const router = useRouter()
 
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.email) {
+      newErrors.email = 'Email is required'
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email'
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required'
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters'
+    }
+
+    if (isSignup) {
+      if (!formData.name) {
+        newErrors.name = 'Name is required'
+      }
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = "Passwords don't match"
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!validateForm()) return
+    
     setIsLoading(true)
     
     try {
       if (isSignup) {
-        if (formData.password !== formData.confirmPassword) {
-          toast.error("Passwords don't match")
-          return
-        }
-
         const { data, error } = await signUp(formData.email, formData.password, formData.name, role)
         
         if (error) {
@@ -55,7 +83,6 @@ export default function AuthPage() {
           
           toast.success('Account created successfully!')
           
-          // Add delay before redirect
           await new Promise(resolve => setTimeout(resolve, 1000))
           router.push(`/dashboard/${data.profile.role}`)
         }
@@ -64,7 +91,7 @@ export default function AuthPage() {
         
         if (error) {
           console.error('Sign in error:', error)
-          toast.error('Failed to sign in')
+          toast.error('Invalid email or password')
           return
         }
 
@@ -106,162 +133,259 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center container-padding py-8">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/10 rounded-full blur-3xl" />
+      </div>
+
+      {/* Navigation */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+        <Link href="/" className="flex items-center space-x-2 focus-ring rounded-lg p-2">
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+          <span className="text-muted-foreground">Back to home</span>
+        </Link>
+        <ThemeToggle />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <GlassCard className="p-8 space-y-6" hover={false}>
+        <EnhancedGlassCard size="lg" className="space-y-8">
           {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center w-16 h-16 mx-auto rounded-xl bg-gradient-to-r from-blue-500/20 to-cyan-500/20">
-              <Brain className="w-8 h-8 text-blue-400" />
+          <div className="text-center space-y-4">
+            <motion.div 
+              className="w-16 h-16 mx-auto rounded-xl gradient-bg flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
+            >
+              <Brain className="w-8 h-8 text-white" />
+            </motion.div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Mock'n-Hire</h1>
+              <p className="text-muted-foreground">
+                {isSignup ? 'Create your account' : 'Welcome back'}
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-white">Mock'n-Hire</h1>
-            <p className="text-white/60">
-              {isSignup ? 'Create your account' : 'Welcome back'}
-            </p>
           </div>
 
           {/* Auth Toggle */}
-          <div className="flex p-1 rounded-lg bg-white/5">
-            <button
+          <div className="flex p-1 rounded-lg bg-accent/30">
+            <motion.button
               type="button"
-              onClick={() => setIsSignup(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+              onClick={() => {
+                setIsSignup(false)
+                setErrors({})
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all focus-ring ${
                 !isSignup 
-                  ? 'bg-white/10 text-white' 
-                  : 'text-white/60 hover:text-white/80'
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
+              whileHover={{ scale: !isSignup ? 1 : 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               Sign In
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               type="button"
-              onClick={() => setIsSignup(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all ${
+              onClick={() => {
+                setIsSignup(true)
+                setErrors({})
+              }}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all focus-ring ${
                 isSignup 
-                  ? 'bg-white/10 text-white' 
-                  : 'text-white/60 hover:text-white/80'
+                  ? 'bg-background text-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
+              whileHover={{ scale: isSignup ? 1 : 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               Sign Up
-            </button>
+            </motion.button>
           </div>
 
           {/* Role Selection */}
-          {isSignup && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="space-y-3"
-            >
-              <label className="block text-sm font-medium text-white/80">
-                I am a...
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole('recruiter')}
-                  className={`p-4 rounded-lg border transition-all ${
-                    role === 'recruiter'
-                      ? 'border-blue-400/50 bg-blue-500/10'
-                      : 'border-white/10 bg-white/5'
-                  }`}
-                >
-                  <Users className="w-6 h-6 mx-auto mb-2 text-blue-400" />
-                  <div className="text-sm font-medium text-white">Recruiter</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('student')}
-                  className={`p-4 rounded-lg border transition-all ${
-                    role === 'student'
-                      ? 'border-green-400/50 bg-green-500/10'
-                      : 'border-white/10 bg-white/5'
-                  }`}
-                >
-                  <GraduationCap className="w-6 h-6 mx-auto mb-2 text-green-400" />
-                  <div className="text-sm font-medium text-white">Student</div>
-                </button>
-              </div>
-            </motion.div>
-          )}
+          <AnimatePresence mode="wait">
+            {isSignup && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
+                <label className="block text-sm font-medium text-foreground">
+                  I am a...
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <motion.button
+                    type="button"
+                    onClick={() => setRole('recruiter')}
+                    className={`p-4 rounded-lg border transition-all focus-ring ${
+                      role === 'recruiter'
+                        ? 'border-primary/50 bg-primary/10'
+                        : 'border-border bg-accent/30 hover:bg-accent/50'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Users className="w-6 h-6 mx-auto mb-2 text-primary" />
+                    <div className="text-sm font-medium text-foreground">Recruiter</div>
+                    <div className="text-xs text-muted-foreground">Hire talent</div>
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => setRole('student')}
+                    className={`p-4 rounded-lg border transition-all focus-ring ${
+                      role === 'student'
+                        ? 'border-primary/50 bg-primary/10'
+                        : 'border-border bg-accent/30 hover:bg-accent/50'
+                    }`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <GraduationCap className="w-6 h-6 mx-auto mb-2 text-primary" />
+                    <div className="text-sm font-medium text-foreground">Student</div>
+                    <div className="text-xs text-muted-foreground">Practice interviews</div>
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignup && (
-              <GlassInput
-                label="Full Name"
-                type="text"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                required
-              />
-            )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <AnimatePresence mode="wait">
+              {isSignup && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <EnhancedGlassInput
+                    label="Full Name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    error={errors.name}
+                    icon={<User className="w-4 h-4" />}
+                    required
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
             
-            <GlassInput
-              label="Email"
+            <EnhancedGlassInput
+              label="Email Address"
               type="email"
               placeholder="Enter your email"
               value={formData.email}
               onChange={(e) => setFormData({...formData, email: e.target.value})}
+              error={errors.email}
+              icon={<Mail className="w-4 h-4" />}
               required
             />
             
-            <GlassInput
+            <EnhancedGlassInput
               label="Password"
               type="password"
               placeholder="Enter your password"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
+              error={errors.password}
+              icon={<Lock className="w-4 h-4" />}
+              hint={isSignup ? "Must be at least 6 characters" : undefined}
               required
             />
 
-            {isSignup && (
-              <GlassInput
-                label="Confirm Password"
-                type="password"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                required
-              />
-            )}
+            <AnimatePresence mode="wait">
+              {isSignup && (
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <EnhancedGlassInput
+                    label="Confirm Password"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                    error={errors.confirmPassword}
+                    icon={<Lock className="w-4 h-4" />}
+                    required
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <GlassButton
+            <EnhancedGlassButton
               type="submit"
               variant="primary"
-              className="w-full"
+              fullWidth
               loading={isLoading}
+              size="lg"
             >
               {isSignup ? 'Create Account' : 'Sign In'}
-            </GlassButton>
+            </EnhancedGlassButton>
           </form>
 
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
+              <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-background text-white/60">or</span>
+              <span className="px-4 bg-card text-muted-foreground">or continue with</span>
             </div>
           </div>
 
           {/* Google Auth */}
-          <GlassButton
+          <EnhancedGlassButton
             type="button"
             onClick={handleGoogleAuth}
-            className="w-full flex items-center justify-center space-x-2"
+            fullWidth
             loading={isLoading}
+            icon={<Chrome className="w-5 h-5" />}
+            size="lg"
           >
-            <Chrome className="w-5 h-5" />
-            <span>Continue with Google</span>
-          </GlassButton>
-        </GlassCard>
+            Google
+          </EnhancedGlassButton>
+
+          {/* Footer */}
+          <div className="text-center text-sm text-muted-foreground">
+            {isSignup ? (
+              <>
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => setIsSignup(false)}
+                  className="text-primary hover:underline focus-ring rounded"
+                >
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  onClick={() => setIsSignup(true)}
+                  className="text-primary hover:underline focus-ring rounded"
+                >
+                  Sign up
+                </button>
+              </>
+            )}
+          </div>
+        </EnhancedGlassCard>
       </motion.div>
     </div>
   )
